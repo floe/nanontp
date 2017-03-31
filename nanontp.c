@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,7 +16,9 @@
 
 int main( int argc, char* argv[] ) {
 
-	struct sockaddr_in peeraddr;
+	struct addrinfo hints;
+	struct addrinfo *target;
+
 	int udpsock;
 	unsigned char buffer[48];
   uint32_t* intbuf = (uint32_t*)buffer;
@@ -30,21 +33,28 @@ int main( int argc, char* argv[] ) {
   memset(buffer,0,sizeof(buffer));
   buffer[0] = 'c';
 
+	// create target address
+	memset(&hints,0,sizeof(hints));
+	hints.ai_family = AF_UNSPEC; // allow IPv4 or IPv6
+	hints.ai_socktype = SOCK_DGRAM; // UDP
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
+
+	result = getaddrinfo(argv[1],"123",&hints,&target); // 123 = NTP port
+	if (result != 0) {
+		printf("Can't get host address - error %s.\n",gai_strerror(result));
+		exit(1);
+	}
+
 	// create UDP socket
-	udpsock = socket(AF_INET,SOCK_DGRAM,0);
+	udpsock = socket(target->ai_family,target->ai_socktype,target->ai_protocol);
 	if (udpsock < 0) {
 		printf("Can't create UDP socket - error %i.\n",errno);
 		exit(1);
 	}
 
-	// create target address
-	memset((char*)&peeraddr,0,sizeof(peeraddr));
-	peeraddr.sin_family = AF_INET;
-	peeraddr.sin_addr.s_addr = inet_addr(argv[1]);
-	peeraddr.sin_port = htons(123); // NTP port
-
 	// send request
-	result = sendto(udpsock,&buffer,sizeof(buffer),0,(struct sockaddr*)&peeraddr,sizeof(peeraddr));
+	result = sendto(udpsock,&buffer,sizeof(buffer),0,target->ai_addr,target->ai_addrlen);
 	if (result < 0) {
 		printf("Can't send on UDP port - error %i.\n",errno);
 		exit(2);
