@@ -1,3 +1,5 @@
+Damn, I just found out that I reimplemented rdate (https://en.wikipedia.org/wiki/Rdate).
+
 # nanontp
 ultra-minimal NTP client
 ```
